@@ -1,4 +1,4 @@
-# Hippo Tasks Backend 🐘
+# Hippo Tasks Backend 🦛
 
 The server-side application for Hippo Tasks, built with Node.js, Express, and Mongoose.
 
