@@ -7,7 +7,6 @@ const TaskSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Academic 📚', 'Hygiene & Self Care 🛁', 'Hobbies 🎨'],
     required: true,
   },
   type: {
