@@ -22,8 +22,13 @@ const TaskSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  lastCompletedAt: {
-    type: Date,
+  streak: {
+    type: Number,
+    default: 0,
+  },
+  lastCompletedDate: {
+    type: String, // 'YYYY-MM-DD'
+    default: null,
   },
 }, { timestamps: true });
 
