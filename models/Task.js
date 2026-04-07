@@ -22,6 +22,9 @@ const TaskSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  lastCompletedAt: {
+    type: Date,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Task', TaskSchema);

@@ -20,9 +20,24 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 
 // @route   GET /api/tasks
-// @desc    Fetch all tasks
+// @desc    Fetch all tasks (with daily reset for routine tasks)
 app.get('/api/tasks', async (req, res) => {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+
+    // Find and reset routine tasks completed before today
+    await Task.updateMany(
+      {
+        type: 'routine',
+        completed: true,
+        lastCompletedAt: { $lt: today }
+      },
+      {
+        $set: { completed: false }
+      }
+    );
+
     const tasks = await Task.find();
     res.json(tasks);
   } catch (err) {
@@ -56,12 +71,16 @@ app.put('/api/tasks/:id', async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
-    // For now, toggle the status if the user didn't provide one
-    // or just use the provided status
-    if (req.body.completed !== undefined) {
-      task.completed = req.body.completed;
+    const newCompletedStatus = req.body.completed !== undefined 
+      ? req.body.completed 
+      : !task.completed;
+
+    task.completed = newCompletedStatus;
+
+    if (newCompletedStatus) {
+      task.lastCompletedAt = new Date(); // Track when it was completed
     } else {
-      task.completed = !task.completed;
+      task.lastCompletedAt = null; // Clear if uncompleted
     }
 
     const updatedTask = await task.save();
