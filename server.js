@@ -105,6 +105,12 @@ app.put('/api/tasks/:id', async (req, res) => {
         task.streak = 1;
       }
       task.lastCompletedDate = today;
+    } else if (!newCompletedStatus && task.completed) {
+      // Just became uncompleted
+      if (task.lastCompletedDate === today) {
+        if (task.streak > 0) task.streak -= 1;
+        task.lastCompletedDate = yesterday; // Revert to yesterday value
+      }
     }
 
     task.completed = newCompletedStatus;
