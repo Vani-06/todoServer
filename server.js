@@ -148,6 +148,12 @@ app.put('/api/tasks/:id', async (req, res) => {
       }
       // If task.lastCompletedDate === today, we don't increment streak again
       task.lastCompletedDate = today;
+    } else if (!newCompletedStatus && task.completed) {
+      // Reversal Logic: If unchecking a task that was completed TODAY
+      if (task.lastCompletedDate === today) {
+        task.streak = Math.max(0, task.streak - 1);
+        task.lastCompletedDate = yesterday; // Reset so re-checking today increments it back
+      }
     }
 
     task.completed = newCompletedStatus;
