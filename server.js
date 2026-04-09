@@ -41,12 +41,13 @@ app.get('/api/tasks', async (req, res) => {
       if (task.type === 'routine') {
         let updated = false;
 
-        // If not completed today, show as uncompleted to the user
-        if (task.lastCompletedDate !== today) {
-          task.completed = false; // In-memory only for the response
+        // Reset completion if it's a new day
+        if (task.completed && task.lastCompletedDate !== today) {
+          task.completed = false;
+          updated = true;
         }
 
-        // If older than yesterday, reset streak in DB
+        // Reset streak if a day was missed
         if (task.lastCompletedDate && task.lastCompletedDate < yesterday && task.streak > 0) {
           task.streak = 0;
           updated = true;
@@ -99,18 +100,12 @@ app.put('/api/tasks/:id', async (req, res) => {
       // Just became completed
       if (task.lastCompletedDate === yesterday) {
         task.streak += 1;
-      } else if (task.lastCompletedDate === today) {
-        // Already completed today once, keep streak same
-      } else {
+      } else if (task.lastCompletedDate !== today) {
+        // First time completing today after a break or first time ever
         task.streak = 1;
       }
+      // If task.lastCompletedDate === today, we don't increment streak again
       task.lastCompletedDate = today;
-    } else if (!newCompletedStatus && task.completed) {
-      // Just became uncompleted
-      if (task.lastCompletedDate === today) {
-        if (task.streak > 0) task.streak -= 1;
-        task.lastCompletedDate = yesterday; // Revert to yesterday value
-      }
     }
 
     task.completed = newCompletedStatus;
