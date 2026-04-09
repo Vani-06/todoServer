@@ -151,6 +151,10 @@ app.put('/api/tasks/:id', async (req, res) => {
     }
 
     task.completed = newCompletedStatus;
+    
+    // Save Subtasks and Links if provided
+    if (req.body.subtasks !== undefined) task.subtasks = req.body.subtasks;
+    if (req.body.links !== undefined) task.links = req.body.links;
 
     const updatedTask = await task.save();
     res.json(updatedTask);

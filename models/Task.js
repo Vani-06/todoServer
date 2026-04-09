@@ -35,6 +35,11 @@ const TaskSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  subtasks: [{
+    title: { type: String, required: true },
+    completed: { type: Boolean, default: false }
+  }],
+  links: [{ type: String }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Task', TaskSchema);
