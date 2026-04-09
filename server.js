@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const Task = require('./models/Task');
+const User = require('./models/User');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,14 +28,48 @@ const getYesterdayString = () => {
   return d.toISOString().split('T')[0];
 };
 
+// --- Auth Routes ---
+
+// @route   POST /api/auth/login
+// @desc    Auto-signup or Login with Name and 4-digit PIN
+app.post('/api/auth/login', async (req, res) => {
+  const { name, pin } = req.body;
+  if (!name || !pin || pin.length !== 4) {
+    return res.status(400).json({ message: 'Please provide a name and a 4-digit PIN' });
+  }
+
+  try {
+    let user = await User.findOne({ name });
+
+    if (!user) {
+      // Auto-signup
+      user = new User({ name, pin });
+      await user.save();
+      return res.status(201).json(user);
+    }
+
+    // Login for existing user
+    if (user.pin !== pin) {
+      return res.status(401).json({ message: 'Incorrect PIN' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // @route   GET /api/tasks
 // @desc    Fetch all tasks (with streak maintenance for routine tasks)
 app.get('/api/tasks', async (req, res) => {
   try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: Missing user ID' });
+
     const today = getTodayString();
     const yesterday = getYesterdayString();
 
-    const tasks = await Task.find();
+    const tasks = await Task.find({ userId });
     
     // Streak Maintenance & Daily Reset
     for (let task of tasks) {
@@ -66,12 +101,16 @@ app.get('/api/tasks', async (req, res) => {
 // @route   POST /api/tasks
 // @desc    Create a new task
 app.post('/api/tasks', async (req, res) => {
+  const userId = req.headers['x-user-id'];
+  if (!userId) return res.status(401).json({ message: 'Unauthorized: Missing user ID' });
+
   const { title, category, type, date } = req.body;
   const task = new Task({
     title,
     category,
     type,
     date,
+    userId,
   });
 
   try {
@@ -86,8 +125,11 @@ app.post('/api/tasks', async (req, res) => {
 // @desc    Update a task's completed status & streaks
 app.put('/api/tasks/:id', async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: Missing user ID' });
+
+    const task = await Task.findOne({ _id: req.params.id, userId });
+    if (!task) return res.status(404).json({ message: 'Task not found or unauthorized' });
 
     const today = getTodayString();
     const yesterday = getYesterdayString();
@@ -121,8 +163,11 @@ app.put('/api/tasks/:id', async (req, res) => {
 // @desc    Delete a task
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: Missing user ID' });
+
+    const task = await Task.findOne({ _id: req.params.id, userId });
+    if (!task) return res.status(404).json({ message: 'Task not found or unauthorized' });
 
     await task.deleteOne();
     res.json({ message: 'Task deleted successfully' });
