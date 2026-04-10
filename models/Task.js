@@ -39,7 +39,14 @@ const TaskSchema = new mongoose.Schema({
     title: { type: String, required: true },
     completed: { type: Boolean, default: false }
   }],
-  links: [{ type: String }]
+  links: [{
+    url: { type: String, required: true },
+    name: { type: String }
+  }],
+  document: {
+    url: { type: String },
+    name: { type: String }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Task', TaskSchema);

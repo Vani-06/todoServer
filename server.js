@@ -5,6 +5,9 @@ require('dotenv').config();
 
 const Task = require('./models/Task');
 const User = require('./models/User');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -12,6 +15,32 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Serve static files from uploads folder
+app.use('/uploads', express.static(uploadDir));
+
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    // Save with a unique filename: taskID-timestamp-originalName
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -161,11 +190,39 @@ app.put('/api/tasks/:id', async (req, res) => {
     // Save Subtasks and Links if provided
     if (req.body.subtasks !== undefined) task.subtasks = req.body.subtasks;
     if (req.body.links !== undefined) task.links = req.body.links;
+    if (req.body.document !== undefined) task.document = req.body.document;
 
     const updatedTask = await task.save();
     res.json(updatedTask);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// @route   POST /api/tasks/:id/upload
+// @desc    Upload a document for a task
+app.post('/api/tasks/:id/upload', upload.single('document'), async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const task = await Task.findOne({ _id: req.params.id, userId });
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    // Update task with document info
+    task.document = {
+      url: `/uploads/${req.file.filename}`,
+      name: req.file.originalname
+    };
+
+    const updatedTask = await task.save();
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
