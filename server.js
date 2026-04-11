@@ -14,7 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://todo-client-pied.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Ensure uploads directory exists
@@ -45,8 +48,14 @@ const upload = multer({
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('MongoDB Connected'))
-.catch(err => console.error('MongoDB Connection Error:', err));
+.then(() => console.log('✅ MongoDB Connected matching Database:', mongoose.connection.name))
+.catch(err => {
+  console.error('❌ MongoDB Connection Error!');
+  console.error('Reason:', err.message);
+  if (err.message.includes('whitelist')) {
+    console.error('SUGGESTION: Please check your MongoDB Atlas IP Whitelist.');
+  }
+});
 
 // Routes
 
@@ -85,7 +94,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('❌ Login error:', err);
+    res.status(500).json({ message: 'Internal Server Error: ' + err.message });
   }
 });
 
