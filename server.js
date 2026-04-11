@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const Task = require('./models/Task');
 const User = require('./models/User');
+const Goal = require('./models/Goal');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -241,6 +242,91 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
     await task.deleteOne();
     res.json({ message: 'Task deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- Goal Routes ---
+
+// @route   GET /api/goals
+// @desc    Fetch all goals for a user
+app.get('/api/goals', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const goals = await Goal.find({ userId });
+    res.json(goals);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   POST /api/goals
+// @desc    Create a new goal
+app.post('/api/goals', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { title } = req.body;
+    const goal = new Goal({ userId, title });
+    await goal.save();
+    res.status(201).json(goal);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// @route   DELETE /api/goals/:id
+// @desc    Delete a goal
+app.delete('/api/goals/:id', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    await Goal.findOneAndDelete({ _id: req.params.id, userId });
+    res.json({ message: 'Goal deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   PUT /api/goals/:id/checkin
+// @desc    Check in to a goal and update streaks
+app.put('/api/goals/:id/checkin', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const goal = await Goal.findOne({ _id: req.params.id, userId });
+    if (!goal) return res.status(404).json({ message: 'Goal not found' });
+
+    const today = getTodayString();
+    const yesterday = getYesterdayString();
+
+    if (goal.lastCheckIn === today) {
+      return res.status(400).json({ message: 'Already checked in today' });
+    }
+
+    // Streak Logic
+    if (goal.lastCheckIn === yesterday) {
+      goal.currentStreak += 1;
+    } else {
+      // Missed a day or first time
+      goal.currentStreak = 1;
+    }
+
+    if (goal.currentStreak > goal.longestStreak) {
+      goal.longestStreak = goal.currentStreak;
+    }
+
+    goal.lastCheckIn = today;
+    goal.history.push(today);
+
+    await goal.save();
+    res.json(goal);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
