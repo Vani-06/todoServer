@@ -11,8 +11,15 @@ const TaskSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['routine', 'next'],
+    enum: ['routine', 'next', 'weekly'],
     required: true,
+  },
+  isWeekly: {
+    type: Boolean,
+    default: false,
+  },
+  dayOfWeek: {
+    type: String, // 'Monday', 'Tuesday', etc.
   },
   date: {
     type: String,
